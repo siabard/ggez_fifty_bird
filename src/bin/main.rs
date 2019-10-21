@@ -5,6 +5,7 @@ use ggez::timer;
 use ggez::{Context, ContextBuilder, GameResult};
 
 use ggez::nalgebra as na;
+use ggez_fifty_bird::*;
 
 const VIRTUAL_WIDTH: u16 = 512;
 const VIRTUAL_HEIGHT: u16 = 288;
@@ -14,6 +15,10 @@ const WINDOW_HEIGHT: f32 = 576.;
 
 const X_RATIO: f32 = WINDOW_WIDTH / (VIRTUAL_WIDTH as f32);
 const Y_RATIO: f32 = WINDOW_HEIGHT / (VIRTUAL_HEIGHT as f32);
+
+const GROUND_SPEED: f32 = 30.;
+const BACKGROUND_SPEED: f32 = 60.;
+const BACKGROUND_LOOPING_POS: f32 = 413.;
 
 fn main() -> GameResult {
     let (mut ctx, mut event_loop) = ContextBuilder::new("game_new", "author_name")
@@ -36,6 +41,7 @@ struct MyGame {
     ground: ggez::graphics::Image,
     background_pos_x: f32,
     ground_pos_x: f32,
+    bird: ggez_fifty_bird::bird::Bird,
 }
 
 impl MyGame {
@@ -54,6 +60,9 @@ impl MyGame {
         //let buffer = graphics::Canvas::with_window_size(ctx)?;
         let background = graphics::Image::new(ctx, "/background.png")?;
         let ground = graphics::Image::new(ctx, "/ground.png")?;
+
+        let bird = bird::Bird::new(ctx, VIRTUAL_WIDTH, VIRTUAL_HEIGHT)?;
+
         Ok(MyGame {
             buffer,
             message,
@@ -61,6 +70,7 @@ impl MyGame {
             ground,
             background_pos_x: 0.,
             ground_pos_x: 0.,
+            bird,
         })
     }
 }
@@ -75,8 +85,10 @@ impl MyGame {
         let dest_point = na::Point2::new((VIRTUAL_WIDTH as f32 - span) / 2.0, 20.0);
         graphics::draw(ctx, &self.message, (dest_point, 0.0, graphics::WHITE))?;
 
-        self.background_pos_x = (self.background_pos_x + 200. * (dt as f32)) % 413.;
-        self.ground_pos_x = (self.ground_pos_x + 120. * (dt as f32)) % (VIRTUAL_WIDTH as f32);
+        self.background_pos_x =
+            (self.background_pos_x + BACKGROUND_SPEED * (dt as f32)) % BACKGROUND_LOOPING_POS;
+        self.ground_pos_x =
+            (self.ground_pos_x + GROUND_SPEED * (dt as f32)) % (VIRTUAL_WIDTH as f32);
         graphics::draw(
             ctx,
             &self.background,
@@ -97,6 +109,7 @@ impl MyGame {
             ),
         )?;
 
+        self.bird.render(ctx);
         graphics::set_canvas(ctx, None);
         Ok(())
     }
@@ -114,7 +127,6 @@ impl EventHandler for MyGame {
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult {
         graphics::clear(ctx, graphics::WHITE);
-        let dims = self.buffer.image().dimensions();
 
         let dest_point = na::Point2::new(0., 0.);
         let scale = na::Vector2::new(X_RATIO * X_RATIO, Y_RATIO * Y_RATIO);
