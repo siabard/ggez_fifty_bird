@@ -1,20 +1,22 @@
 use ggez::event::{self, EventHandler};
 use ggez::graphics;
-use ggez::input::keyboard::{KeyCode, KeyMods};
+use ggez::input::keyboard::{self, KeyCode, KeyMods};
 use ggez::timer;
 use ggez::{Context, ContextBuilder, GameResult};
 
 use ggez::nalgebra as na;
 use ggez_fifty_bird::*;
+use std::collections::HashMap;
+use std::vec::Vec;
 
-const VIRTUAL_WIDTH: u16 = 512;
-const VIRTUAL_HEIGHT: u16 = 288;
+const VIRTUAL_WIDTH: f32 = 512.;
+const VIRTUAL_HEIGHT: f32 = 288.;
 
 const WINDOW_WIDTH: f32 = 1024.;
 const WINDOW_HEIGHT: f32 = 576.;
 
-const X_RATIO: f32 = WINDOW_WIDTH / (VIRTUAL_WIDTH as f32);
-const Y_RATIO: f32 = WINDOW_HEIGHT / (VIRTUAL_HEIGHT as f32);
+const X_RATIO: f32 = WINDOW_WIDTH / VIRTUAL_WIDTH;
+const Y_RATIO: f32 = WINDOW_HEIGHT / VIRTUAL_HEIGHT;
 
 const GROUND_SPEED: f32 = 30.;
 const BACKGROUND_SPEED: f32 = 60.;
@@ -30,6 +32,7 @@ fn main() -> GameResult {
     graphics::set_default_filter(&mut ctx, graphics::FilterMode::Nearest);
 
     let mut my_game = MyGame::new(&mut ctx)?;
+
     event::run(&mut ctx, &mut event_loop, &mut my_game);
     Ok(())
 }
@@ -42,6 +45,9 @@ struct MyGame {
     background_pos_x: f32,
     ground_pos_x: f32,
     bird: ggez_fifty_bird::bird::Bird,
+    pipe: graphics::Image,
+    pipes: Vec<pipe::Pipe>,
+    spawn_timer: f64,
 }
 
 impl MyGame {
@@ -51,8 +57,8 @@ impl MyGame {
 
         let buffer = ggez::graphics::Canvas::new(
             ctx,
-            VIRTUAL_WIDTH,
-            VIRTUAL_HEIGHT,
+            VIRTUAL_WIDTH as u16,
+            VIRTUAL_HEIGHT as u16,
             ggez::conf::NumSamples::One,
         )
         .unwrap();
@@ -63,6 +69,8 @@ impl MyGame {
 
         let bird = bird::Bird::new(ctx, VIRTUAL_WIDTH, VIRTUAL_HEIGHT)?;
 
+        let pipe = graphics::Image::new(ctx, "/pipe.png")?;
+
         Ok(MyGame {
             buffer,
             message,
@@ -71,6 +79,9 @@ impl MyGame {
             background_pos_x: 0.,
             ground_pos_x: 0.,
             bird,
+            pipe,
+            pipes: vec![],
+            spawn_timer: 0.,
         })
     }
 }
@@ -110,6 +121,10 @@ impl MyGame {
         )?;
 
         self.bird.render(ctx);
+
+        for pipe in self.pipes.iter() {
+            pipe.render(ctx);
+        }
         graphics::set_canvas(ctx, None);
         Ok(())
     }
@@ -119,6 +134,29 @@ impl EventHandler for MyGame {
     fn update(&mut self, ctx: &mut Context) -> GameResult {
         // dt(delta) 얻어오기
         let dt = timer::duration_to_f64(timer::delta(ctx));
+
+        // Pipe 생성
+        self.spawn_timer = self.spawn_timer + dt;
+        if self.spawn_timer > 2. {
+            self.pipes.push(pipe::Pipe::new(
+                self.pipe.clone(),
+                VIRTUAL_WIDTH,
+                VIRTUAL_HEIGHT,
+            )?);
+            self.spawn_timer = 0.;
+        }
+
+        // 파이프 업데이트
+        for pipe in self.pipes.iter_mut() {
+            pipe.update(ctx, dt);
+        }
+
+        // Jump
+        if keyboard::is_key_pressed(ctx, KeyCode::Space) {
+            self.bird.jump(ctx, dt);
+        }
+
+        self.bird.update(ctx, dt);
 
         // 그려야할 스크롤의 위치를 계산하기
         self.draw_canvas(ctx, dt);

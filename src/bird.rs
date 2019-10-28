@@ -4,25 +4,27 @@ use ggez::*;
 
 pub struct Bird {
     image: ggez::graphics::Image,
-    width: u16,
-    height: u16,
-    x: u16,
-    y: u16,
+    width: f32,
+    height: f32,
+    x: f32,
+    y: f32,
+    dy: f32,
 }
 
 impl Bird {
-    pub fn new(ctx: &mut ggez::Context, max_x: u16, max_y: u16) -> GameResult<Bird> {
+    pub fn new(ctx: &mut ggez::Context, max_x: f32, max_y: f32) -> GameResult<Bird> {
         let image = ggez::graphics::Image::new(ctx, "/bird.png")?;
-        let width = image.width();
-        let height = image.height();
-        let x = (max_x - width) / 2;
-        let y = (max_y - height) / 2;
+        let width = image.width() as f32;
+        let height = image.height() as f32;
+        let x = (max_x - width) / 2.;
+        let y = (max_y - height) / 2.;
         Ok(Bird {
             image,
             width,
             height,
             x,
             y,
+            dy: 0.,
         })
     }
 
@@ -30,12 +32,20 @@ impl Bird {
         graphics::draw(
             ctx,
             &self.image,
-            (
-                na::Point2::new(self.x as f32, self.y as f32),
-                0.0,
-                graphics::WHITE,
-            ),
+            (na::Point2::new(self.x, self.y), 0.0, graphics::WHITE),
         )?;
+        Ok(())
+    }
+
+    pub fn update(&mut self, _ctx: &mut ggez::Context, dt: f64) -> GameResult {
+        self.dy = self.dy + ((super::GRAVITY as f64) * dt) as f32;
+
+        self.y = self.y + self.dy;
+        Ok(())
+    }
+
+    pub fn jump(&mut self, _ctx: &mut ggez::Context, _dt: f64) -> GameResult {
+        self.dy = -5.;
         Ok(())
     }
 }
