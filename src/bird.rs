@@ -37,14 +37,15 @@ impl Bird {
         Ok(())
     }
 
-    pub fn update(&mut self, _ctx: &mut ggez::Context, dt: f64) -> GameResult {
-        self.dy = self.dy + ((super::GRAVITY as f64) * dt) as f32;
+    pub fn update(&mut self, _ctx: &mut ggez::Context, dt: f32) -> GameResult {
+        self.dy = self.dy + super::GRAVITY * dt;
 
         self.y = self.y + self.dy;
+        println!("{}", self.y);
         Ok(())
     }
 
-    pub fn jump(&mut self, _ctx: &mut ggez::Context, _dt: f64) -> GameResult {
+    pub fn jump(&mut self, _ctx: &mut ggez::Context, _dt: f32) -> GameResult {
         self.dy = -5.;
         Ok(())
     }

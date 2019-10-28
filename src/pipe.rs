@@ -8,9 +8,9 @@ const PIPE_SCROLL: f32 = -60.;
 #[derive(Clone)]
 pub struct Pipe {
     image: graphics::Image,
-    x: f32,
+    pub x: f32,
     y: f32,
-    width: f32,
+    pub width: f32,
 }
 
 impl Pipe {
@@ -22,8 +22,8 @@ impl Pipe {
         Ok(Pipe { image, x, y, width })
     }
 
-    pub fn update(&mut self, ctx: &mut ggez::Context, dt: f64) {
-        self.x = self.x + (PIPE_SCROLL * dt as f32);
+    pub fn update(&mut self, ctx: &mut ggez::Context, dt: f32) {
+        self.x = self.x + PIPE_SCROLL * dt;
     }
 
     pub fn render(&self, ctx: &mut ggez::Context) {

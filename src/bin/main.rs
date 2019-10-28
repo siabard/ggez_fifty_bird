@@ -47,7 +47,7 @@ struct MyGame {
     bird: ggez_fifty_bird::bird::Bird,
     pipe: graphics::Image,
     pipes: Vec<pipe::Pipe>,
-    spawn_timer: f64,
+    spawn_timer: f32,
 }
 
 impl MyGame {
@@ -87,19 +87,14 @@ impl MyGame {
 }
 
 impl MyGame {
-    fn draw_canvas(&mut self, ctx: &mut Context, dt: f64) -> GameResult {
+    fn draw_canvas(&mut self, ctx: &mut Context, dt: f32) -> GameResult {
         graphics::set_canvas(ctx, Some(&self.buffer));
 
         graphics::clear(ctx, graphics::Color::from_rgba(30, 30, 0, 255));
 
-        let span = *&self.message.width(ctx) as f32;
-        let dest_point = na::Point2::new((VIRTUAL_WIDTH as f32 - span) / 2.0, 20.0);
-        graphics::draw(ctx, &self.message, (dest_point, 0.0, graphics::WHITE))?;
-
         self.background_pos_x =
-            (self.background_pos_x + BACKGROUND_SPEED * (dt as f32)) % BACKGROUND_LOOPING_POS;
-        self.ground_pos_x =
-            (self.ground_pos_x + GROUND_SPEED * (dt as f32)) % (VIRTUAL_WIDTH as f32);
+            (self.background_pos_x + BACKGROUND_SPEED * dt) % BACKGROUND_LOOPING_POS;
+        self.ground_pos_x = (self.ground_pos_x + GROUND_SPEED * dt) % (VIRTUAL_WIDTH as f32);
         graphics::draw(
             ctx,
             &self.background,
@@ -109,6 +104,12 @@ impl MyGame {
                 graphics::WHITE,
             ),
         )?;
+
+        self.bird.render(ctx);
+
+        for pipe in self.pipes.iter() {
+            pipe.render(ctx);
+        }
 
         graphics::draw(
             ctx,
@@ -120,11 +121,6 @@ impl MyGame {
             ),
         )?;
 
-        self.bird.render(ctx);
-
-        for pipe in self.pipes.iter() {
-            pipe.render(ctx);
-        }
         graphics::set_canvas(ctx, None);
         Ok(())
     }
@@ -133,33 +129,41 @@ impl MyGame {
 impl EventHandler for MyGame {
     fn update(&mut self, ctx: &mut Context) -> GameResult {
         // dt(delta) 얻어오기
-        let dt = timer::duration_to_f64(timer::delta(ctx));
+        const DESIRED_FPS: u32 = 60;
 
-        // Pipe 생성
-        self.spawn_timer = self.spawn_timer + dt;
-        if self.spawn_timer > 2. {
-            self.pipes.push(pipe::Pipe::new(
-                self.pipe.clone(),
-                VIRTUAL_WIDTH,
-                VIRTUAL_HEIGHT,
-            )?);
-            self.spawn_timer = 0.;
+        while timer::check_update_time(ctx, DESIRED_FPS) {
+            let dt = 1.0 / (DESIRED_FPS as f32);
+
+            self.bird.update(ctx, dt);
+
+            // Pipe 생성
+            self.spawn_timer = self.spawn_timer + dt;
+            if self.spawn_timer > 2. {
+                self.pipes.push(pipe::Pipe::new(
+                    self.pipe.clone(),
+                    VIRTUAL_WIDTH,
+                    VIRTUAL_HEIGHT,
+                )?);
+                self.spawn_timer = 0.;
+            }
+
+            // 파이프 업데이트
+            for pipe in self.pipes.iter_mut() {
+                pipe.update(ctx, dt);
+
+                // x 좌표가 0보다 작다면 해당 내역을 지워야하는데..
+            }
+
+            self.pipes.retain(|p| p.x >= -p.width);
+
+            // Jump
+            if keyboard::is_key_pressed(ctx, KeyCode::Space) {
+                self.bird.jump(ctx, dt);
+            }
+            // 그려야할 스크롤의 위치를 계산하기
+            self.draw_canvas(ctx, dt);
         }
 
-        // 파이프 업데이트
-        for pipe in self.pipes.iter_mut() {
-            pipe.update(ctx, dt);
-        }
-
-        // Jump
-        if keyboard::is_key_pressed(ctx, KeyCode::Space) {
-            self.bird.jump(ctx, dt);
-        }
-
-        self.bird.update(ctx, dt);
-
-        // 그려야할 스크롤의 위치를 계산하기
-        self.draw_canvas(ctx, dt);
         Ok(())
     }
 
@@ -179,6 +183,7 @@ impl EventHandler for MyGame {
         )?;
 
         graphics::present(ctx)?;
+
         Ok(())
     }
 
