@@ -9,6 +9,8 @@ use ggez_fifty_bird::*;
 use std::collections::HashMap;
 use std::vec::Vec;
 
+use rand::*;
+
 const VIRTUAL_WIDTH: f32 = 512.;
 const VIRTUAL_HEIGHT: f32 = 288.;
 
@@ -37,6 +39,14 @@ fn main() -> GameResult {
     Ok(())
 }
 
+#[derive(PartialEq)]
+enum GameState {
+    WAIT,
+    IDLE,
+    RUNNING,
+    END,
+}
+
 struct MyGame {
     buffer: ggez::graphics::Canvas,
     message: ggez::graphics::Text,
@@ -48,6 +58,7 @@ struct MyGame {
     pipe: graphics::Image,
     pipes: Vec<pipe::Pipe>,
     spawn_timer: f32,
+    game_state: GameState,
 }
 
 impl MyGame {
@@ -82,6 +93,7 @@ impl MyGame {
             pipe,
             pipes: vec![],
             spawn_timer: 0.,
+            game_state: GameState::WAIT,
         })
     }
 }
@@ -128,38 +140,47 @@ impl MyGame {
 
 impl EventHandler for MyGame {
     fn update(&mut self, ctx: &mut Context) -> GameResult {
+        let mut rng = rand::thread_rng();
+
         // dt(delta) 얻어오기
         const DESIRED_FPS: u32 = 60;
 
         while timer::check_update_time(ctx, DESIRED_FPS) {
             let dt = 1.0 / (DESIRED_FPS as f32);
 
-            self.bird.update(ctx, dt);
+            if self.game_state == GameState::RUNNING {
+                self.bird.update(ctx, dt);
 
-            // Pipe 생성
-            self.spawn_timer = self.spawn_timer + dt;
-            if self.spawn_timer > 2. {
-                self.pipes.push(pipe::Pipe::new(
-                    self.pipe.clone(),
-                    VIRTUAL_WIDTH,
-                    VIRTUAL_HEIGHT,
-                )?);
-                self.spawn_timer = 0.;
-            }
+                // Pipe 생성
+                self.spawn_timer = self.spawn_timer + dt;
+                if self.spawn_timer > 3. {
+                    let gap = rng.gen_range(80, 120) as f32;
 
-            // 파이프 업데이트
-            for pipe in self.pipes.iter_mut() {
-                pipe.update(ctx, dt);
+                    self.pipes.push(pipe::Pipe::new(
+                        self.pipe.clone(),
+                        VIRTUAL_WIDTH,
+                        VIRTUAL_HEIGHT,
+                        gap,
+                    )?);
+                    self.spawn_timer = 0.;
+                }
 
+                // 파이프 업데이트
+                for pipe in self.pipes.iter_mut() {
+                    pipe.update(ctx, dt);
+
+                    self.bird.collide(&pipe);
+                }
                 // x 좌표가 0보다 작다면 해당 내역을 지워야하는데..
+                self.pipes.retain(|p| p.x >= -p.width);
             }
-
-            self.pipes.retain(|p| p.x >= -p.width);
 
             // Jump
             if keyboard::is_key_pressed(ctx, KeyCode::Space) {
                 self.bird.jump(ctx, dt);
+                self.game_state = GameState::RUNNING;
             }
+
             // 그려야할 스크롤의 위치를 계산하기
             self.draw_canvas(ctx, dt);
         }
@@ -169,7 +190,6 @@ impl EventHandler for MyGame {
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult {
         graphics::clear(ctx, graphics::WHITE);
-
         let dest_point = na::Point2::new(0., 0.);
         let scale = na::Vector2::new(X_RATIO * X_RATIO, Y_RATIO * Y_RATIO);
 

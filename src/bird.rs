@@ -1,3 +1,4 @@
+use crate::pipe::*;
 use ggez::graphics;
 use ggez::nalgebra as na;
 use ggez::*;
@@ -41,12 +42,21 @@ impl Bird {
         self.dy = self.dy + super::GRAVITY * dt;
 
         self.y = self.y + self.dy;
-        println!("{}", self.y);
         Ok(())
     }
 
     pub fn jump(&mut self, _ctx: &mut ggez::Context, _dt: f32) -> GameResult {
         self.dy = -5.;
         Ok(())
+    }
+
+    pub fn collide(&self, pipe: &Pipe) -> bool {
+        if ((self.x + 2.) + (self.width - 4.)) >= pipe.x && (self.x + 2.) <= (pipe.x + PIPE_WIDTH) {
+            if (self.y + 2.) + (self.height - 4.) >= pipe.y && (self.y + 2.) <= pipe.y {
+                println!("collide!");
+                return true;
+            }
+        }
+        return false;
     }
 }
